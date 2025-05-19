@@ -1,12 +1,10 @@
-
-
 import streamlit as st
 from cryptography.fernet import Fernet
 
-# Set page config
+# Page configuration
 st.set_page_config(page_title="Secure Encryptor", page_icon="🔐", layout="centered")
 
-# Custom CSS for UI
+# Custom UI CSS
 st.markdown("""
     <style>
         .main {
@@ -37,38 +35,58 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Encryption Key (Store securely in production)
-@st.cache_resource
-def get_cipher():
-    key = Fernet.generate_key()
-    return Fernet(key)
-
-cipher = get_cipher()
-
-# UI
+# Start UI
 st.markdown('<div class="main">', unsafe_allow_html=True)
-st.title("Secure Encryptor App")
+st.title("🔐 Secure Encryptor App")
 
+# Choose operation
 mode = st.radio("Choose Operation:", ["Encrypt Text", "Decrypt Text"], horizontal=True)
 
-if mode == "Encrypt Text":
-    plain_text = st.text_area("Enter text to encrypt:", height=150)
-    if st.button("Encrypt"):
-        if plain_text:
-            encrypted_text = cipher.encrypt(plain_text.encode()).decode()
-            st.success("Encrypted Text:")
-            st.code(encrypted_text, language="text")
-        else:
-            st.warning("Please enter some text to encrypt.")
+# Key input or generation
+st.subheader("Encryption Key")
+key_input = st.text_input("Enter encryption key (leave blank to auto-generate):")
 
-elif mode == "Decrypt Text":
-    encrypted_input = st.text_area("Enter encrypted text:", height=150)
-    if st.button("Decrypt"):
-        try:
-            decrypted_text = cipher.decrypt(encrypted_input.encode()).decode()
-            st.success("Decrypted Text:")
-            st.code(decrypted_text, language="text")
-        except Exception as e:
-            st.error("Decryption failed. Please check your input.")
+# Validate key or generate new
+def get_cipher(key_input):
+    try:
+        if key_input:
+            key = key_input.encode()
+        else:
+            key = Fernet.generate_key()
+        cipher = Fernet(key)
+        return cipher, key.decode()
+    except Exception:
+        return None, None
+
+cipher, used_key = get_cipher(key_input)
+
+if cipher is None:
+    st.error("Invalid encryption key provided.")
+else:
+    if mode == "Encrypt Text":
+        plain_text = st.text_area("Enter text to encrypt:", height=150)
+        if st.button("Encrypt"):
+            if plain_text:
+                encrypted_text = cipher.encrypt(plain_text.encode()).decode()
+                st.success("Encryption Successful!")
+                st.text("Encryption Key (Save this to decrypt later):")
+                st.code(used_key)
+                st.text("Encrypted Text:")
+                st.code(encrypted_text)
+            else:
+                st.warning("Please enter some text to encrypt.")
+
+    elif mode == "Decrypt Text":
+        encrypted_input = st.text_area("Enter encrypted text:", height=150)
+        if st.button("Decrypt"):
+            if encrypted_input:
+                try:
+                    decrypted_text = cipher.decrypt(encrypted_input.encode()).decode()
+                    st.success("Decrypted Text:")
+                    st.code(decrypted_text)
+                except Exception:
+                    st.error("Decryption failed. Please check the input and the key.")
+            else:
+                st.warning("Please enter some encrypted text to decrypt.")
 
 st.markdown("</div>", unsafe_allow_html=True)
